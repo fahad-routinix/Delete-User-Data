@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete Account API</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1b2230; --muted: #5d687b; --line: #e2e6ee; --card: #f6f8fb;
+    --code: #f0f3f8; --accent: #2f5bea; --warn-bg: #fff6e5; --warn: #8a5a00;
+    --ok-bg: #e8f6ee; --ok: #1a6b43; --bad-bg: #fdecea; --bad: #a3281f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11141b; --fg: #e7eaf1; --muted: #9ba5b6; --line: #272d3a; --card: #181d27;
+      --code: #1d2330; --accent: #7da2ff; --warn-bg: #2b2412; --warn: #f0c36b;
+      --ok-bg: #12261c; --ok: #6fd3a0; --bad-bg: #2d1816; --bad: #f19a92;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 16px/1.65 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 36px 20px 80px; }
+  h1 { font-size: 1.9rem; margin: 0 0 6px; }
+  h2 { font-size: 1.35rem; margin: 2.4em 0 .5em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1.05rem; margin: 1.6em 0 .4em; }
+  p { margin: .6em 0; }
+  .lead { color: var(--muted); font-size: 1.05rem; margin-bottom: 1.2em; }
+  code { background: var(--code); padding: .12em .38em; border-radius: 4px;
+         font: .88em ui-monospace, Consolas, monospace; }
+  pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px;
+        padding: 14px 16px; overflow-x: auto; margin: .6em 0; }
+  pre code { background: none; padding: 0; font-size: .86rem; line-height: 1.55; }
+  table { border-collapse: collapse; width: 100%; margin: .7em 0; font-size: .93rem; }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--card); }
+  .tablewrap { overflow-x: auto; }
+  .method { display: inline-block; font: 700 .8rem ui-monospace, Consolas, monospace; color: #fff;
+            background: var(--accent); padding: 3px 8px; border-radius: 5px; margin-right: 8px; }
+  .endpoint { font: 600 1.02rem ui-monospace, Consolas, monospace; margin: .4em 0 .8em; }
+  .note { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 14px;
+          border-radius: 6px; margin: 1em 0; }
+  .warn { border-left-color: var(--warn); background: var(--warn-bg); color: var(--fg); }
+  .pill { display: inline-block; font-size: .78rem; font-weight: 600; padding: 2px 9px; border-radius: 99px; }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 1.2em 0; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .step b { display: block; margin-bottom: 4px; color: var(--accent); }
+  .step small { color: var(--muted); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .box { border: 1px solid var(--line); border-radius: 10px; padding: 4px 16px 10px; background: var(--card); }
+  .box ul { margin: .4em 0; padding-left: 1.2em; }
+  .box li { margin: .25em 0; }
+  @media (max-width: 640px) { .timeline, .cols { grid-template-columns: 1fr; } main { padding: 24px 14px 60px; } }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Delete Account API</h1>
+<p class="lead">How a user deletes their account, what happens during the 30-day recovery period, and exactly what is erased afterwards.</p>
+
+<p>Base URL: <code>https://api.routinix.app/api/v1</code> &nbsp;·&nbsp; Body format: JSON</p>
+
+<h2>The idea in one minute</h2>
+<p>Deleting an account is <strong>not instant</strong>. It happens in two stages so a mistake can be undone.</p>
+
+<div class="timeline">
+  <div class="step"><b>Day 0: user taps Delete</b>
+    The account is switched off at once and everyone is signed out. <small>Nothing is erased yet.</small></div>
+  <div class="step"><b>Days 1 to 30: recovery window</b>
+    The user can change their mind and restore the account. <small>All data is still there.</small></div>
+  <div class="step"><b>After day 30: erased</b>
+    A daily job erases the personal data. <small>This cannot be undone.</small></div>
+</div>
+
+<h2>1. Request deletion</h2>
+<div class="endpoint"><span class="method">POST</span>/users/me/delete/</div>
+<p>Needs the user's access token: <code>Authorization: Bearer &lt;access token&gt;</code>.</p>
+
+<h3>Request body</h3>
+<div class="tablewrap"><table>
+  <tr><th>Field</th><th>Required</th><th>Notes</th></tr>
+  <tr><td><code>confirmation</code></td><td>yes</td><td>Must be exactly the text <code>DELETE</code>. Show the user a box where they type it.</td></tr>
+  <tr><td><code>current_password</code></td><td>one of the two</td><td>The user's password (accounts created with email and password).</td></tr>
+  <tr><td><code>google_id_token</code></td><td>one of the two</td><td>A fresh Google ID token, for accounts that sign in with Google and have no password.</td></tr>
+</table></div>
+<pre><code>{
+  "current_password": "Str0ng!Passw0rd",
+  "confirmation": "DELETE"
+}</code></pre>
+
+<h3>Success response <span class="pill ok">202 Accepted</span></h3>
+<pre><code>{
+  "id": "5c790b01-b89d-4c7b-bcbc-880a53b92070",
+  "status": "PENDING",
+  "requested_at": "2026-11-25T08:47:26.777773Z",
+  "scheduled_for": "2026-12-25T08:47:26.777773Z"
+}</code></pre>
+<p><code>scheduled_for</code> is the deadline. It is exactly 30 days after <code>requested_at</code>. Until that moment the user can still recover the account. Show it as a date, for example "Your account will be deleted on 25 Dec 2026."</p>
+
+<h3>Errors</h3>
+<div class="tablewrap"><table>
+  <tr><th>Status</th><th>When</th></tr>
+  <tr><td><span class="pill bad">400</span> <code>VALIDATION_ERROR</code></td><td><code>confirmation</code> is not <code>DELETE</code>, no password or token was sent, or the password is wrong (the error names the field).</td></tr>
+  <tr><td><span class="pill bad">400</span></td><td>The account is not active, for example it is already pending deletion.</td></tr>
+  <tr><td><span class="pill bad">401</span></td><td>The access token is missing or expired. Refresh it and try again.</td></tr>
+</table></div>
+
+<h3>What happens right away</h3>
+<ul>
+  <li>The account is <strong>disabled</strong>: the user cannot sign in.</li>
+  <li><strong>Every session is signed out</strong> on every device.</li>
+  <li>Any pending password-reset or email-verification codes are cancelled.</li>
+  <li>The user's Motivation posts <strong>disappear from the feed</strong>, because the author is disabled.</li>
+  <li><strong>No data is deleted yet.</strong> Everything is kept untouched for the 30 days.</li>
+</ul>
+<p>After the 202, the app should clear its stored tokens and cached data and return to the sign-in screen.</p>
+
+<div class="note">Tip: offer <code>POST /users/me/export/</code> (a copy of the user's data) before deletion, so they can keep a copy.</div>
+
+<h2>2. The 30-day recovery period</h2>
+<p>During these 30 days the account is "pending deletion". The user cannot use the app, but nothing is lost. If they sign in the normal way it fails, and the app should offer <strong>"Recover my account"</strong> instead.</p>
+
+<h3>How it behaves</h3>
+<div class="tablewrap"><table>
+  <tr><th>What the user tries</th><th>What they get</th></tr>
+  <tr><td>Sign in with email and password</td><td><code>401</code> "Invalid email or password." (the account is switched off)</td></tr>
+  <tr><td>Sign in with Google</td><td><code>409 ACCOUNT_PENDING_DELETION</code>. Show the recover option.</td></tr>
+  <tr><td>Register again with the same email</td><td><code>409 ACCOUNT_PENDING_DELETION</code>. The user can recover, or start a new account on purpose (see below).</td></tr>
+  <tr><td>Recover the account</td><td>Works until <code>scheduled_for</code>, then never again.</td></tr>
+</table></div>
+
+<h3>Recover the account</h3>
+<div class="endpoint"><span class="method">POST</span>/users/recover-deletion/</div>
+<p><strong>Public</strong>: no token needed, because the user is signed out. Limited to 10 attempts per hour.</p>
+<div class="tablewrap"><table>
+  <tr><th>Field</th><th>Required</th><th>Notes</th></tr>
+  <tr><td><code>email</code> + <code>password</code></td><td>one option</td><td>The account's email and its password.</td></tr>
+  <tr><td><code>google_id_token</code></td><td>other option</td><td>A fresh Google ID token, for Google accounts.</td></tr>
+</table></div>
+<pre><code>{
+  "email": "user@example.com",
+  "password": "Str0ng!Passw0rd"
+}</code></pre>
+
+<h3>Success response <span class="pill ok">204 No Content</span></h3>
+<p>The body is empty. The account is active again with all its data. <strong>The user is not signed in automatically</strong>: the app must now sign them in normally with <code>POST /auth/login/</code> (or Google).</p>
+
+<h3>Errors</h3>
+<div class="tablewrap"><table>
+  <tr><th>Status</th><th>When</th></tr>
+  <tr><td><span class="pill bad">401</span> <code>AUTHENTICATION_FAILED</code></td><td>"Unable to recover this account." Wrong email or password, the account is not pending deletion, or the 30 days have already passed. The message is deliberately the same for all of these.</td></tr>
+  <tr><td><span class="pill bad">503</span> <code>GOOGLE_UNAVAILABLE</code></td><td>Google verification is temporarily unavailable. Try again later.</td></tr>
+  <tr><td><span class="pill bad">429</span></td><td>Too many attempts. Wait and try again.</td></tr>
+</table></div>
+
+<h3>Starting a brand-new account instead</h3>
+<p>If the user wants a fresh start with the same email, call <code>POST /auth/register/</code> again with <code>"start_new_account": true</code> and <code>"previous_password"</code> set to the old account's password. The old account is then erased immediately and a new one is created. Without the old password this is refused, so nobody else can wipe the account by typing its email.</p>
+
+<h2>3. What is deleted after 30 days</h2>
+<p>A job runs <strong>once a day at 02:30 UTC</strong>. Any account whose <code>scheduled_for</code> has passed is erased then. So deletion happens at the first daily run after day 30, not at the exact minute.</p>
+
+<div class="cols">
+  <div class="box">
+    <h3><span class="pill bad">Erased</span></h3>
+    <ul>
+      <li>Profile: name, date of birth, avatar, bio</li>
+      <li>Email address (replaced by an anonymous placeholder)</li>
+      <li>Password and all sign-in sessions</li>
+      <li>Linked Google sign-in</li>
+      <li>Routines, schedules, completions and categories</li>
+      <li>Points, balance, history and rewards (including redemptions)</li>
+      <li>Streak and daily points history</li>
+      <li>Motivation posts, likes, bookmarks, follows, reports and pings</li>
+      <li>Registered devices, push tokens and diagnostics</li>
+      <li>Blocking settings, unlock history and trusted contact</li>
+      <li>Screen-time and activity data</li>
+      <li>Notification settings and history</li>
+      <li>Trial and premium grants</li>
+      <li>Referral links (the user's code is switched off)</li>
+    </ul>
+  </div>
+  <div class="box">
+    <h3><span class="pill ok">Kept</span></h3>
+    <ul>
+      <li>An <strong>anonymous empty account record</strong>: no name, no real email, no password, it can never sign in.</li>
+      <li><strong>App-store subscription identifiers</strong>, so financial records stay intact and a purchase cannot be reused on another account.</li>
+      <li>Support tickets and security logs, only for their normal retention period. The security log stores scrambled (hashed) identifiers, not raw emails.</li>
+    </ul>
+    <p style="color:var(--muted);font-size:.9rem">After deletion, recovery is impossible. The same email address can be used to register a new account.</p>
+  </div>
+</div>
+
+<div class="note warn"><strong>Important for the app:</strong> deleting the account does <strong>not</strong> cancel an App Store or Google Play subscription. Tell the user to cancel it in the store, or they will keep being billed.</div>
+
+<h2>Quick summary for the frontend</h2>
+<div class="tablewrap"><table>
+  <tr><th>Step</th><th>Call</th><th>Result</th></tr>
+  <tr><td>User confirms deletion</td><td><code>POST /users/me/delete/</code> with password and <code>"DELETE"</code></td><td>202 with <code>scheduled_for</code>. Clear tokens, go to sign-in.</td></tr>
+  <tr><td>User returns within 30 days</td><td><code>POST /users/recover-deletion/</code></td><td>204. Then sign in as usual.</td></tr>
+  <tr><td>30 days pass</td><td>(automatic, daily job)</td><td>Data erased. Cannot be recovered.</td></tr>
+</table></div>
+
+<p style="color:var(--muted);font-size:.9rem;margin-top:2.4em">The recovery period is set by the server setting <code>ACCOUNT_DELETION_RECOVERY_DAYS</code> (30 today). Show the real deadline from <code>scheduled_for</code> rather than hard-coding "30 days".</p>
+
+</main>
+</body>
+</html>
